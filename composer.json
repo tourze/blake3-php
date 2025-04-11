@@ -1,0 +1,27 @@
+{
+  "name": "tourze/blake3-php",
+  "description": "A PHP implementation of the BLAKE3 cryptographic hash function",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": "^8.1"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^10.0",
+    "phpstan/phpstan": "^2.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "Tourze\\Blake3\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tourze\\Blake3\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "phpstan": "phpstan analyse src -l 1",
+    "test": "phpunit"
+  }
+}
