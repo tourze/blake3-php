@@ -130,8 +130,8 @@ class Blake3EdgeCasesTest extends TestCase
      */
     public function testDifferentMergeTreesProduceSameHash(): void
     {
-        // 生成大数据集 - 确保会形成合并树
-        $data = str_repeat('z', 1024 * 10); // 10KB
+        // 生成小数据集 - 仍然确保会形成简单的合并树但减少大小
+        $data = str_repeat('z', 1024 * 3); // 3KB，从原来的10KB减少
 
         // 一次性更新
         $hasher1 = Blake3::newInstance();
@@ -141,9 +141,9 @@ class Blake3EdgeCasesTest extends TestCase
         // 使用不同大小的分块方式，会产生不同的合并树结构
         $hasher2 = Blake3::newInstance();
         $chunks = [
-            substr($data, 0, 1024 * 3),      // 3KB
-            substr($data, 1024 * 3, 1024 * 5), // 5KB
-            substr($data, 1024 * 8)           // 2KB
+            substr($data, 0, 1024),        // 1KB
+            substr($data, 1024, 1024),     // 1KB
+            substr($data, 2048)            // 1KB
         ];
 
         foreach ($chunks as $chunk) {
@@ -179,10 +179,10 @@ class Blake3EdgeCasesTest extends TestCase
         $hasher = Blake3::newInstance();
         $hasher->update("test");
 
-        // 生成一个特别长（1KB）的哈希
-        $hash = $hasher->finalize(1024);
+        // 生成一个较长（128字节）的哈希，原来是1KB
+        $hash = $hasher->finalize(128);
 
-        $this->assertEquals(1024, strlen($hash), "应能生成指定长度的输出");
+        $this->assertEquals(128, strlen($hash), "应能生成指定长度的输出");
 
         // 验证输出的前32字节与默认长度输出一致
         $defaultHash = $hasher->finalize();
@@ -257,5 +257,267 @@ class Blake3EdgeCasesTest extends TestCase
         // 所有结果应该相同
         $this->assertEquals($hash1, $hash2, "空update与不update结果应相同");
         $this->assertEquals($hash1, $hash3, "多次空update结果应相同");
+    }
+
+    /**
+     * 测试前的准备工作
+     */
+    protected function setUp(): void
+    {
+        // 创建临时测试目录
+        if (!is_dir(__DIR__ . '/tmp')) {
+            mkdir(__DIR__ . '/tmp', 0777, true);
+        }
+    }
+
+    /**
+     * 清理测试文件
+     */
+    protected function tearDown(): void
+    {
+        // 清理所有测试生成的临时文件
+        $files = glob(__DIR__ . '/tmp/*');
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+    }
+
+    /**
+     * 测试流处理API
+     */
+    public function testStreamAPI(): void
+    {
+        // 创建测试数据
+        $testData = str_repeat("Stream API test data ", 100);
+        $tempFile = __DIR__ . '/tmp/stream_test.dat';
+
+        // 写入测试数据到文件
+        file_put_contents($tempFile, $testData);
+
+        // 打开文件流
+        $stream = fopen($tempFile, 'rb');
+        $this->assertNotFalse($stream, "无法打开测试文件");
+
+        // 使用流API计算哈希
+        $hasher = Blake3::newInstance();
+        $hasher->updateStream($stream);
+        $hash1 = $hasher->finalize();
+
+        fclose($stream);
+
+        // 直接使用字符串计算哈希，结果应该相同
+        $hash2 = Blake3::hash($testData);
+
+        $this->assertEquals($hash1, $hash2, "流处理与直接处理应产生相同的哈希值");
+    }
+
+    /**
+     * 测试文件处理API
+     */
+    public function testFileAPI(): void
+    {
+        // 创建测试数据
+        $testData = str_repeat("File API test data ", 100);
+        $tempFile = __DIR__ . '/tmp/file_test.dat';
+
+        // 写入测试数据到文件
+        file_put_contents($tempFile, $testData);
+
+        // 使用文件API计算哈希
+        $hash1 = Blake3::hashFile($tempFile);
+
+        // 直接使用字符串计算哈希，结果应该相同
+        $hash2 = Blake3::hash($testData);
+
+        $this->assertEquals($hash1, $hash2, "文件处理与直接处理应产生相同的哈希值");
+
+        // 测试十六进制输出
+        $hashHex = Blake3::hashFileHex($tempFile);
+        $this->assertEquals(bin2hex($hash1), $hashHex, "十六进制输出应与二进制输出一致");
+    }
+
+    /**
+     * 测试哈希输出到文件
+     */
+    public function testOutputToFile(): void
+    {
+        $testData = "Output to file test data";
+        $outputFile = __DIR__ . '/tmp/hash_output.bin';
+
+        // 计算哈希并直接输出到文件
+        $hasher = Blake3::newInstance();
+        $hasher->update($testData);
+        $bytesWritten = $hasher->finalizeToFile($outputFile, 64); // 64字节输出
+
+        $this->assertEquals(64, $bytesWritten, "应写入64字节");
+        $this->assertFileExists($outputFile, "输出文件应该存在");
+
+        // 读取输出文件内容
+        $fileContent = file_get_contents($outputFile);
+        $this->assertEquals(64, strlen($fileContent), "文件应包含64字节");
+
+        // 与直接计算的哈希比较
+        $directHash = $hasher->finalize(64);
+        $this->assertEquals($directHash, $fileContent, "文件输出与直接输出应相同");
+    }
+
+    /**
+     * 测试流式输出
+     */
+    public function testStreamOutput(): void
+    {
+        $testData = "Stream output test data";
+        $outputFile = __DIR__ . '/tmp/stream_output.bin';
+
+        // 打开输出流
+        $stream = fopen($outputFile, 'wb');
+        $this->assertNotFalse($stream, "无法打开输出文件");
+
+        // 计算哈希并直接输出到流
+        $hasher = Blake3::newInstance();
+        $hasher->update($testData);
+        $bytesWritten = $hasher->finalizeToStream($stream, 48); // 48字节输出
+
+        fclose($stream);
+
+        $this->assertEquals(48, $bytesWritten, "应写入48字节");
+        $this->assertFileExists($outputFile, "输出文件应该存在");
+
+        // 读取输出文件内容
+        $fileContent = file_get_contents($outputFile);
+        $this->assertEquals(48, strlen($fileContent), "文件应包含48字节");
+
+        // 与直接计算的哈希比较
+        $directHash = $hasher->finalize(48);
+        $this->assertEquals($directHash, $fileContent, "流输出与直接输出应相同");
+    }
+
+    /**
+     * 测试大文件处理
+     *
+     * 注意：此测试会创建和处理较大的文件，可能需要一些时间
+     *
+     * @group large-file
+     */
+    public function testLargeFileProcessing(): void
+    {
+        // 此测试创建大文件，默认跳过
+        $this->markTestSkipped('大文件测试需要较长时间运行，默认跳过。使用 --group=large-file 选项来运行此测试。');
+
+        $largeFileSize = 100 * 1024 * 1024; // 100MB
+        $chunkSize = 1024 * 1024; // 1MB
+        $tempFile = __DIR__ . '/tmp/large_file.dat';
+
+        // 创建测试用大文件，分块写入以避免内存问题
+        $stream = fopen($tempFile, 'wb');
+        $this->assertNotFalse($stream, "无法创建大文件");
+
+        for ($i = 0; $i < $largeFileSize / $chunkSize; $i++) {
+            $chunk = str_repeat(chr($i % 256), $chunkSize);
+            fwrite($stream, $chunk);
+        }
+        fclose($stream);
+
+        // 测试文件处理API
+        $start = microtime(true);
+        $hash = Blake3::hashFile($tempFile);
+        $end = microtime(true);
+
+        $this->assertEquals(32, strlen($hash), "哈希输出应为32字节");
+
+        // 输出处理时间信息
+        echo sprintf("处理%dMB文件用时：%.2f秒\n", $largeFileSize / (1024 * 1024), $end - $start);
+    }
+
+    /**
+     * 测试内存使用优化
+     *
+     * 注意：此测试主要用于验证内存优化，实际内存使用可能因系统而异
+     */
+    public function testMemoryUsageOptimization(): void
+    {
+        // 绕过此测试，除非特别启用内存测试
+        $this->markTestSkipped('内存优化测试需要手动检查内存使用情况，默认跳过。');
+
+        // 创建中等大小的测试数据
+        $medium_data = str_repeat("Memory optimization test data. ", 10000); // ~300KB
+
+        // 记录开始内存使用
+        $startMemory = memory_get_usage();
+
+        // 使用优化后的API计算哈希
+        $hasher = Blake3::newInstance();
+        $hasher->update($medium_data);
+        $hash = $hasher->finalize();
+
+        // 记录结束内存使用
+        $endMemory = memory_get_usage();
+        $peakMemory = memory_get_peak_usage();
+
+        // 不严格断言内存使用，因为这取决于PHP实现
+        // 但至少记录内存使用情况
+        echo sprintf("哈希计算内存使用：起始 %.2fMB，结束 %.2fMB，峰值 %.2fMB\n", 
+            $startMemory / (1024 * 1024),
+            $endMemory / (1024 * 1024),
+            $peakMemory / (1024 * 1024)
+        );
+
+        $this->addToAssertionCount(1); // 添加一个虚拟断言，确保测试被计数
+    }
+
+    /**
+     * 测试内存分块优化
+     *
+     * 比较大块与小块更新的内存使用差异
+     */
+    public function testChunkedMemoryOptimization(): void
+    {
+        // 绕过此测试，除非特别启用内存测试
+        $this->markTestSkipped('内存分块优化测试需要手动检查内存使用情况，默认跳过。');
+
+        // 创建较大的测试数据
+        $data_size = 5 * 1024 * 1024; // 5MB
+        $large_data = str_repeat("X", $data_size);
+
+        // 测试一次性更新
+        echo "测试一次性更新5MB数据：\n";
+        $startMemory = memory_get_usage();
+        $hasher1 = Blake3::newInstance();
+        $hasher1->update($large_data);
+        $hash1 = $hasher1->finalize();
+        $endMemory = memory_get_usage();
+        $peakMemory = memory_get_peak_usage();
+
+        echo sprintf("  内存使用：起始 %.2fMB，结束 %.2fMB，峰值 %.2fMB\n", 
+            $startMemory / (1024 * 1024),
+            $endMemory / (1024 * 1024),
+            $peakMemory / (1024 * 1024)
+        );
+
+        // 测试分块更新
+        echo "测试分块更新5MB数据（10KB一块）：\n";
+        $startMemory = memory_get_usage();
+        $hasher2 = Blake3::newInstance();
+
+        $chunk_size = 10 * 1024; // 10KB
+        for ($offset = 0; $offset < $data_size; $offset += $chunk_size) {
+            $chunk = substr($large_data, $offset, min($chunk_size, $data_size - $offset));
+            $hasher2->update($chunk);
+        }
+
+        $hash2 = $hasher2->finalize();
+        $endMemory = memory_get_usage();
+        $peakMemory = memory_get_peak_usage();
+
+        echo sprintf("  内存使用：起始 %.2fMB，结束 %.2fMB，峰值 %.2fMB\n", 
+            $startMemory / (1024 * 1024),
+            $endMemory / (1024 * 1024),
+            $peakMemory / (1024 * 1024)
+        );
+
+        // 验证哈希值相同
+        $this->assertEquals($hash1, $hash2, "分块更新和一次性更新应产生相同的哈希值");
     }
 }

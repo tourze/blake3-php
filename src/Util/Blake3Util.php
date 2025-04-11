@@ -28,28 +28,30 @@ class Blake3Util
 
     /**
      * 32位右旋转
-     * 修复旋转方向：右旋转是向右移位，需要改正逻辑
+     * 优化旋转操作性能
      */
     public static function rightrotate32(int $x, int $n): int
     {
-        // 确保n在0-31范围内
-        $n = $n & 31;
-        // 正确的右旋转：右移n位并将溢出位放到左边
+        // 确保n在0-31范围内，避免不必要的计算
+        $n &= 31;
+        // 优化的右旋转：右移n位并将溢出位放到左边
         return self::mask32(($x >> $n) | ($x << (32 - $n)));
     }
 
     /**
      * 混合函数，混合列或对角线
+     * 性能优化：避免重复调用函数
      */
     public static function g(array &$state, int $a, int $b, int $c, int $d, int $mx, int $my): void
     {
-        $state[$a] = self::add32($state[$a], self::add32($state[$b], $mx));
+        // 直接内联计算以减少函数调用开销
+        $state[$a] = self::mask32($state[$a] + $state[$b] + $mx);
         $state[$d] = self::rightrotate32($state[$d] ^ $state[$a], 16);
-        $state[$c] = self::add32($state[$c], $state[$d]);
+        $state[$c] = self::mask32($state[$c] + $state[$d]);
         $state[$b] = self::rightrotate32($state[$b] ^ $state[$c], 12);
-        $state[$a] = self::add32($state[$a], self::add32($state[$b], $my));
+        $state[$a] = self::mask32($state[$a] + $state[$b] + $my);
         $state[$d] = self::rightrotate32($state[$d] ^ $state[$a], 8);
-        $state[$c] = self::add32($state[$c], $state[$d]);
+        $state[$c] = self::mask32($state[$c] + $state[$d]);
         $state[$b] = self::rightrotate32($state[$b] ^ $state[$c], 7);
     }
 
@@ -149,19 +151,19 @@ class Blake3Util
 
     /**
      * 从小端字节转换为字
-     * 确保正确处理字节序转换
+     * 性能优化：使用更高效的unpack方法处理字节序转换
      */
     public static function words_from_little_endian_bytes(string $b): array
     {
         $len = strlen($b);
         assert($len % 4 === 0, 'Input length must be a multiple of 4 bytes');
 
-        $result = [];
-        for ($i = 0; $i < $len; $i += 4) {
-            // 使用unpack确保正确处理字节序
-            $result[] = unpack('V', substr($b, $i, 4))[1];
+        // 使用一次性unpack而不是循环，提高小端字节转换性能
+        if ($len > 0) {
+            $format = 'V' . ($len / 4);
+            return array_values(unpack($format, $b));
         }
-        return $result;
+        return [];
     }
 
     /**

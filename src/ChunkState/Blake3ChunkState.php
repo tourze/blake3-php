@@ -51,19 +51,26 @@ class Blake3ChunkState
     }
 
     /**
-     * 更新数据块状态
-     * 修复数据块处理逻辑
+     * 直接以字节偏移方式更新块状态
+     * 通过引用传递字符串并使用偏移量，减少内存分配和复制
+     *
+     * @param string $input_bytes 输入的字节数据
+     * @param int $offset 起始偏移量
+     * @param int $length 要处理的长度
      */
-    public function update(string $input_bytes): void
+    public function updateWithOffset(string $input_bytes, int $offset, int $length): void
     {
         // 如果没有输入数据，直接返回
-        if ($input_bytes === "") {
+        if ($length <= 0) {
             return;
         }
 
-        $bytes_remaining = $input_bytes;
+        // 当前偏移位置
+        $current_offset = $offset;
+        // 结束位置
+        $end_offset = $offset + $length;
 
-        while ($bytes_remaining !== "") {
+        while ($current_offset < $end_offset) {
             // 如果块缓冲区已满，压缩并清除
             if ($this->block_len === Blake3Constants::BLOCK_LEN) {
                 $block_words = Blake3Util::words_from_little_endian_bytes($this->block);
@@ -88,20 +95,32 @@ class Blake3ChunkState
 
             // 计算可以复制到块缓冲区的字节数
             $want = Blake3Constants::BLOCK_LEN - $this->block_len;
-            $take = min($want, strlen($bytes_remaining));
+            $take = min($want, $end_offset - $current_offset);
 
-            // 将输入字节复制到块缓冲区
-            $this->block = substr_replace(
-                $this->block,
-                substr($bytes_remaining, 0, $take), 
-                $this->block_len,
-                $take
-            );
+            // 直接按字节复制，避免创建子字符串
+            for ($i = 0; $i < $take; $i++) {
+                $this->block[$this->block_len + $i] = $input_bytes[$current_offset + $i];
+            }
 
             // 更新状态
             $this->block_len += $take;
-            $bytes_remaining = substr($bytes_remaining, $take);
+            $current_offset += $take;
         }
+    }
+
+    /**
+     * 更新数据块状态
+     * 性能优化：使用优化的updateWithOffset方法
+     *
+     * @param string $input_bytes 输入的字节数据
+     */
+    public function update(string $input_bytes): void
+    {
+        if ($input_bytes === "") {
+            return;
+        }
+
+        $this->updateWithOffset($input_bytes, 0, strlen($input_bytes));
     }
 
     /**

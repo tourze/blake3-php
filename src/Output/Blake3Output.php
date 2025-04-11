@@ -52,20 +52,25 @@ class Blake3Output
 
     /**
      * 生成根节点输出字节
-     * 修复XOF模式的输出生成逻辑
+     * 性能优化：减少循环次数和内存分配
      */
     public function root_output_bytes(int $length): string
     {
         if ($length === 0) {
             return '';
         }
-        
+
+        // 预分配输出缓冲区以减少内存重新分配
         $output_bytes = '';
-        $i = 0;
+        $bytes_generated = 0;
         $output_block_counter = 0;
 
-        while ($i < $length) {
-            // 对每个输出块使用不同的计数器
+        // 每个输出块可以生成64字节（16个字 * 4字节/字）
+        $bytes_per_block = 64;
+        $blocks_needed = (int)ceil($length / $bytes_per_block);
+
+        for ($block = 0; $block < $blocks_needed; $block++) {
+            // 对每个输出块使用递增的计数器
             $words = Blake3Util::compress(
                 $this->input_chaining_value,
                 $this->block_words,
@@ -73,26 +78,104 @@ class Blake3Output
                 $this->block_len,
                 $this->flags | Blake3Constants::ROOT
             );
-            
-            // 将每个字转换为字节并添加到输出
+
+            // 批量处理字到字节的转换
+            $word_bytes = '';
             foreach ($words as $word) {
-                // 如果已经达到所需长度，就停止添加字节
-                if ($i >= $length) {
-                    break;
-                }
-                
-                // 将word转换为小端字节
-                $word_bytes = pack("V", $word);
-                $remaining = $length - $i;
-                $take = min(4, $remaining); // 最多取4字节（1个字）
-                
-                $output_bytes .= substr($word_bytes, 0, $take);
-                $i += $take;
+                $word_bytes .= pack("V", $word);
             }
-            
+
+            $remaining = $length - $bytes_generated;
+            $take = min(64, $remaining);
+
+            $output_bytes .= substr($word_bytes, 0, $take);
+            $bytes_generated += $take;
+
             $output_block_counter++;
         }
 
         return $output_bytes;
+    }
+
+    /**
+     * 将输出直接写入流，适用于超大输出
+     *
+     * @param resource $stream 输出流资源
+     * @param int $length 要输出的字节数
+     * @return int 写入的字节数
+     * @throws \InvalidArgumentException 如果提供的不是有效的流资源
+     */
+    public function writeToStream($stream, int $length = 32): int
+    {
+        if (!is_resource($stream)) {
+            throw new \InvalidArgumentException("参数必须是有效的流资源");
+        }
+
+        if ($length <= 0) {
+            return 0;
+        }
+
+        $bytes_written = 0;
+        $output_block_counter = 0;
+
+        // 每个输出块可以生成64字节
+        $bytes_per_block = 64;
+        $blocks_needed = (int)ceil($length / $bytes_per_block);
+
+        for ($block = 0; $block < $blocks_needed; $block++) {
+            // 对每个输出块使用递增的计数器
+            $words = Blake3Util::compress(
+                $this->input_chaining_value,
+                $this->block_words,
+                $output_block_counter,
+                $this->block_len,
+                $this->flags | Blake3Constants::ROOT
+            );
+
+            // 批量处理字到字节的转换
+            $word_bytes = '';
+            foreach ($words as $word) {
+                $word_bytes .= pack("V", $word);
+            }
+
+            $remaining = $length - $bytes_written;
+            $take = min($bytes_per_block, $remaining);
+
+            // 直接写入流
+            $chunk = substr($word_bytes, 0, $take);
+            $written = fwrite($stream, $chunk);
+
+            if ($written === false || $written < $take) {
+                // 写入出错或不完整
+                break;
+            }
+
+            $bytes_written += $written;
+            $output_block_counter++;
+        }
+
+        return $bytes_written;
+    }
+
+    /**
+     * 将哈希输出写入文件
+     *
+     * @param string $filePath 文件路径
+     * @param int $length 要输出的字节数
+     * @return int 写入的字节数
+     * @throws \RuntimeException 如果文件无法打开
+     */
+    public function writeToFile(string $filePath, int $length = 32): int
+    {
+        $stream = @fopen($filePath, 'wb');
+        if ($stream === false) {
+            throw new \RuntimeException("无法打开文件: " . $filePath);
+        }
+
+        try {
+            return $this->writeToStream($stream, $length);
+        } finally {
+            fclose($stream);
+        }
     }
 }
