@@ -91,7 +91,7 @@ composer test
 
 ## 目录结构
 
-```
+```shell
 src/
   ├── Blake3.php                 # 主类
   ├── ChunkState/                # 数据块状态
