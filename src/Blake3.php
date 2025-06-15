@@ -90,7 +90,8 @@ class Blake3
 
             if ($chunk_len === Blake3Constants::CHUNK_LEN) {
                 // 当前块已满，需要将其添加到合并树中
-                $this->add_chunk_chaining_value($current_chunk->output()->chaining_value(), $current_chunk->getChunkCounter());
+                // 注意：传递的是已完成的 chunk 总数，而不是当前 chunk 的索引
+                $this->add_chunk_chaining_value($current_chunk->output()->chaining_value(), $current_chunk->getChunkCounter() + 1);
 
                 // 创建新的块状态
                 $this->chunk_state[0] = new Blake3ChunkState(
@@ -240,41 +241,46 @@ class Blake3
 
     /**
      * 添加块链接值到合并树
-     * 性能优化：提高树合并逻辑性能
+     * 使用 BLAKE3 的二进制树合并算法（基于 C 实现的 "popcnt" 方法）
      */
     private function add_chunk_chaining_value(array $new_cv, int $total_chunks): void
     {
-        // 初始化当前父级节点
-        $cur = $new_cv;
-        $cur_height = 0;
-
-        // 合并树节点直到找到空槽
-        while ($cur_height < $this->stack_size) {
-            // 获取栈中的节点
-            $existing_cv = $this->stack[$cur_height];
-
-            // 计算父节点 - 优化合并操作
-            $block_words = array_merge($existing_cv, $cur);
-
-            // 使用优化的压缩函数
-            $cur = Blake3Util::compress(
+        // 首先将新的 CV 添加到栈中
+        $this->stack[$this->stack_size] = $new_cv;
+        $this->stack_size++;
+        
+        // 使用 popcnt（计算二进制中 1 的个数）来确定合并后的栈长度
+        // PHP 没有内置的 popcnt，所以我们手动计算
+        $post_merge_stack_len = 0;
+        $temp = $total_chunks;
+        while ($temp > 0) {
+            $post_merge_stack_len += ($temp & 1);
+            $temp >>= 1;
+        }
+        
+        // 持续合并直到栈长度达到目标值
+        while ($this->stack_size > $post_merge_stack_len) {
+            // 取出栈顶的两个元素（右子节点和左子节点）
+            $right_child = $this->stack[$this->stack_size - 1];
+            $left_child = $this->stack[$this->stack_size - 2];
+            
+            // 计算父节点
+            $block_words = array_merge($left_child, $right_child);
+            $parent_cv = Blake3Util::compress(
                 $this->key,
                 $block_words,
                 0, // 父节点的块计数器始终为0
                 Blake3Constants::BLOCK_LEN,
                 $this->flags | Blake3Constants::PARENT
             );
-
-            // 取出前8个字作为新的链接值，优化切片操作
-            $cur = array_slice($cur, 0, 8);
-
-            // 增加高度继续检查
-            $cur_height++;
+            
+            // 取出前8个字作为新的链接值
+            $parent_cv = array_slice($parent_cv, 0, 8);
+            
+            // 用父节点替换栈顶的两个子节点
+            $this->stack[$this->stack_size - 2] = $parent_cv;
+            $this->stack_size--;
         }
-
-        // 直接赋值，不需要条件判断
-        $this->stack[$cur_height] = $cur;
-        $this->stack_size = max($this->stack_size, $cur_height + 1);
     }
 
     /**
