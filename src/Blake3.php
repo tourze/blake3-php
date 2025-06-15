@@ -90,8 +90,8 @@ class Blake3
 
             if ($chunk_len === Blake3Constants::CHUNK_LEN) {
                 // 当前块已满，需要将其添加到合并树中
-                // 注意：传递的是已完成的 chunk 总数，而不是当前 chunk 的索引
-                $this->add_chunk_chaining_value($current_chunk->output()->chaining_value(), $current_chunk->getChunkCounter() + 1);
+                // 注意：C 实现传递的是当前 chunk 的索引（chunk_counter），不是总数
+                $this->add_chunk_chaining_value($current_chunk->output()->chaining_value(), $current_chunk->getChunkCounter());
 
                 // 创建新的块状态
                 $this->chunk_state[0] = new Blake3ChunkState(
@@ -241,26 +241,23 @@ class Blake3
 
     /**
      * 添加块链接值到合并树
-     * 使用 BLAKE3 的二进制树合并算法（基于 C 实现的 "popcnt" 方法）
+     * 使用 BLAKE3 的二进制树合并算法（基于 C 实现的 "懒惰合并" 策略）
      */
-    private function add_chunk_chaining_value(array $new_cv, int $total_chunks): void
+    private function add_chunk_chaining_value(array $new_cv, int $chunk_counter): void
     {
-        // 首先将新的 CV 添加到栈中
-        $this->stack[$this->stack_size] = $new_cv;
-        $this->stack_size++;
-        
-        // 使用 popcnt（计算二进制中 1 的个数）来确定合并后的栈长度
-        // PHP 没有内置的 popcnt，所以我们手动计算
+        // 首先基于当前的 chunk_counter 合并栈
+        // 使用 popcnt（计算二进制中 1 的个数）来确定目标栈长度
         $post_merge_stack_len = 0;
-        $temp = $total_chunks;
+        $temp = $chunk_counter;
         while ($temp > 0) {
             $post_merge_stack_len += ($temp & 1);
             $temp >>= 1;
         }
         
-        // 持续合并直到栈长度达到目标值
+        // 合并栈直到达到目标长度
         while ($this->stack_size > $post_merge_stack_len) {
-            // 取出栈顶的两个元素（右子节点和左子节点）
+            // 取出栈顶的两个元素进行合并
+            // 注意：C 实现从栈顶向下合并，左子节点在下，右子节点在上
             $right_child = $this->stack[$this->stack_size - 1];
             $left_child = $this->stack[$this->stack_size - 2];
             
@@ -281,6 +278,10 @@ class Blake3
             $this->stack[$this->stack_size - 2] = $parent_cv;
             $this->stack_size--;
         }
+        
+        // 然后将新的 CV 推入栈顶
+        $this->stack[$this->stack_size] = $new_cv;
+        $this->stack_size++;
     }
 
     /**

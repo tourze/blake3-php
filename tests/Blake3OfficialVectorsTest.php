@@ -124,7 +124,8 @@ class Blake3OfficialVectorsTest extends TestCase
     /**
      * 生成测试输入数据
      *
-     * 根据 BLAKE3 官方测试向量规范，输入数据是从 0x00 开始的递增字节序列
+     * 根据 BLAKE3 官方测试向量规范，输入数据是 0-250 的重复序列
+     * 注意：是 251 字节的循环（0, 1, 2, ..., 250, 0, 1, 2, ...）
      *
      * @param int $length 需要生成的字节长度
      * @return string 二进制字符串
@@ -133,7 +134,7 @@ class Blake3OfficialVectorsTest extends TestCase
     {
         $data = '';
         for ($i = 0; $i < $length; $i++) {
-            $data .= chr($i % 256);
+            $data .= chr($i % 251);  // 注意：是 251，不是 256
         }
         return $data;
     }
