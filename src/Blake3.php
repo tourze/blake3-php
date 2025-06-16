@@ -241,28 +241,24 @@ class Blake3
 
     /**
      * 添加块链接值到合并树
-     * 使用 BLAKE3 的二进制树合并算法（基于 C 实现的 "懒惰合并" 策略）
+     * 使用 BLAKE3 的二进制树合并算法（基于 Rust reference 实现）
      */
     private function add_chunk_chaining_value(array $new_cv, int $chunk_counter): void
     {
-        // 首先基于当前的 chunk_counter 合并栈
-        // 使用 popcnt（计算二进制中 1 的个数）来确定目标栈长度
-        $post_merge_stack_len = 0;
-        $temp = $chunk_counter;
-        while ($temp > 0) {
-            $post_merge_stack_len += ($temp & 1);
-            $temp >>= 1;
-        }
-        
-        // 合并栈直到达到目标长度
-        while ($this->stack_size > $post_merge_stack_len) {
-            // 取出栈顶的两个元素进行合并
-            // 注意：C 实现从栈顶向下合并，左子节点在下，右子节点在上
-            $right_child = $this->stack[$this->stack_size - 1];
-            $left_child = $this->stack[$this->stack_size - 2];
-            
+        // 使用 Rust 的 trailing zeros 算法
+        // total_chunks 是已完成的块总数（chunk_counter + 1）
+        $total_chunks = $chunk_counter + 1;
+
+        // 合并所有可以合并的子树
+        // 每个尾随的0位表示一个完成的子树
+        while (($total_chunks & 1) == 0) {
+            // 弹出栈顶元素作为左子节点
+            $this->stack_size--;
+            $left_child = $this->stack[$this->stack_size];
+
+            // 当前的 new_cv 作为右子节点
             // 计算父节点
-            $block_words = array_merge($left_child, $right_child);
+            $block_words = array_merge($left_child, $new_cv);
             $parent_cv = Blake3Util::compress(
                 $this->key,
                 $block_words,
@@ -270,16 +266,15 @@ class Blake3
                 Blake3Constants::BLOCK_LEN,
                 $this->flags | Blake3Constants::PARENT
             );
-            
+
             // 取出前8个字作为新的链接值
-            $parent_cv = array_slice($parent_cv, 0, 8);
-            
-            // 用父节点替换栈顶的两个子节点
-            $this->stack[$this->stack_size - 2] = $parent_cv;
-            $this->stack_size--;
+            $new_cv = array_slice($parent_cv, 0, 8);
+
+            // 右移以检查下一位
+            $total_chunks >>= 1;
         }
-        
-        // 然后将新的 CV 推入栈顶
+
+        // 将最终的 CV 推入栈顶
         $this->stack[$this->stack_size] = $new_cv;
         $this->stack_size++;
     }

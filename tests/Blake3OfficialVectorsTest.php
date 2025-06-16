@@ -78,7 +78,7 @@ class Blake3OfficialVectorsTest extends TestCase
         // 5120 字节 (5KB)
         ['input_len' => 5120, 'hash' => '9cadc15fed8b5d854562b26a9536d9707cadeda9b143978f319ab34230535833'],
         // 5121 字节
-        ['input_len' => 5121, 'hash' => '628bd2cb2004694adaab7bbd778a25df25c47b9d4155a55f8fbd79f2fe154cfa'],
+        ['input_len' => 5121, 'hash' => '628bd2cb2004694adaab7bbd778a25df25c47b9d4155a55f8fbd79f2fe154cff'],
         // 6144 字节 (6KB)
         ['input_len' => 6144, 'hash' => '3e2e5b74e048f3add6d21faab3f83aa44d3b2278afb83b80b3c35164ebeca205'],
         // 6145 字节
