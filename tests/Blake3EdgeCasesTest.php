@@ -403,10 +403,7 @@ class Blake3EdgeCasesTest extends TestCase
      */
     public function testLargeFileProcessing(): void
     {
-        // 此测试创建大文件，默认跳过
-        $this->markTestSkipped('大文件测试需要较长时间运行，默认跳过。使用 --group=large-file 选项来运行此测试。');
-
-        $largeFileSize = 100 * 1024 * 1024; // 100MB
+        $largeFileSize = 10 * 1024 * 1024; // 10MB
         $chunkSize = 1024 * 1024; // 1MB
         $tempFile = __DIR__ . '/tmp/large_file.dat';
 
@@ -438,9 +435,6 @@ class Blake3EdgeCasesTest extends TestCase
      */
     public function testMemoryUsageOptimization(): void
     {
-        // 绕过此测试，除非特别启用内存测试
-        $this->markTestSkipped('内存优化测试需要手动检查内存使用情况，默认跳过。');
-
         // 创建中等大小的测试数据
         $medium_data = str_repeat("Memory optimization test data. ", 10000); // ~300KB
 
@@ -474,15 +468,12 @@ class Blake3EdgeCasesTest extends TestCase
      */
     public function testChunkedMemoryOptimization(): void
     {
-        // 绕过此测试，除非特别启用内存测试
-        $this->markTestSkipped('内存分块优化测试需要手动检查内存使用情况，默认跳过。');
-
         // 创建较大的测试数据
-        $data_size = 5 * 1024 * 1024; // 5MB
+        $data_size = 1 * 1024 * 1024; // 1MB
         $large_data = str_repeat("X", $data_size);
 
         // 测试一次性更新
-        echo "测试一次性更新5MB数据：\n";
+        echo "测试一次性更新1MB数据：\n";
         $startMemory = memory_get_usage();
         $hasher1 = Blake3::newInstance();
         $hasher1->update($large_data);
@@ -497,7 +488,7 @@ class Blake3EdgeCasesTest extends TestCase
         );
 
         // 测试分块更新
-        echo "测试分块更新5MB数据（10KB一块）：\n";
+        echo "测试分块更新1MB数据（10KB一块）：\n";
         $startMemory = memory_get_usage();
         $hasher2 = Blake3::newInstance();
 

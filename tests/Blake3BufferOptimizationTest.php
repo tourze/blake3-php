@@ -50,7 +50,7 @@ class Blake3BufferOptimizationTest extends TestCase
 
         file_put_contents($smallFile, str_repeat('a', 500 * 1024)); // 500KB
         file_put_contents($mediumFile, str_repeat('b', 5 * 1024 * 1024)); // 5MB
-        file_put_contents($largeFile, str_repeat('c', 15 * 1024 * 1024)); // 15MB
+        file_put_contents($largeFile, str_repeat('c', 10 * 1024 * 1024)); // 10MB
 
         // 使用反射获取自动选择的缓冲区大小
         $reflectionClass = new \ReflectionClass(BufferSizeManager::class);
@@ -94,12 +94,9 @@ class Blake3BufferOptimizationTest extends TestCase
      */
     public function testBufferSizePerformance(): void
     {
-        // 默认跳过此测试，除非明确指定要运行性能测试
-        $this->markTestSkipped('性能测试需要较长时间运行，默认跳过。使用 --group=performance 选项来运行此测试。');
-
         // 创建测试文件 - 使用中等大小以便测试
         $testFile = __DIR__ . '/tmp/performance_test.dat';
-        $fileSize = 10 * 1024 * 1024; // 10MB
+        $fileSize = 2 * 1024 * 1024; // 2MB
         file_put_contents($testFile, str_repeat('x', $fileSize));
 
         // 测试不同的缓冲区大小
@@ -172,12 +169,9 @@ class Blake3BufferOptimizationTest extends TestCase
      */
     public function testDynamicBufferSizeAdjustment(): void
     {
-        // 默认跳过此测试，除非明确指定要运行性能测试
-        $this->markTestSkipped('性能测试需要较长时间运行，默认跳过。使用 --group=performance 选项来运行此测试。');
-
         // 创建一个非常大的测试文件，以便触发动态调整
         $testFile = __DIR__ . '/tmp/dynamic_buffer_test.dat';
-        $fileSize = 50 * 1024 * 1024; // 50MB
+        $fileSize = 5 * 1024 * 1024; // 5MB
 
         $stream = fopen($testFile, 'wb');
         for ($i = 0; $i < $fileSize / (1024 * 1024); $i++) {

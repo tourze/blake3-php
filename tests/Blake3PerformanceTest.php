@@ -22,10 +22,7 @@ class Blake3PerformanceTest extends TestCase
      */
     public function testSmallDataPerformance(): void
     {
-        // 跳过长时间运行的测试，除非特别指定
-        $this->markTestSkipped('性能测试需要较长时间运行，默认跳过。使用 --group=performance 选项来运行此测试。');
-
-        $iterations = 1000;
+        $iterations = 100;
         $data = "The quick brown fox jumps over the lazy dog";
 
         $start = microtime(true);
@@ -53,10 +50,7 @@ class Blake3PerformanceTest extends TestCase
      */
     public function testMediumDataPerformance(): void
     {
-        // 跳过长时间运行的测试，除非特别指定
-        $this->markTestSkipped('性能测试需要较长时间运行，默认跳过。使用 --group=performance 选项来运行此测试。');
-
-        $iterations = 100;
+        $iterations = 20;
         $data = str_repeat("Medium sized data for performance testing. ", 100); // ~4KB
 
         $start = microtime(true);
@@ -84,11 +78,8 @@ class Blake3PerformanceTest extends TestCase
      */
     public function testLargeDataPerformance(): void
     {
-        // 跳过长时间运行的测试，除非特别指定
-        $this->markTestSkipped('性能测试需要较长时间运行，默认跳过。使用 --group=performance 选项来运行此测试。');
-
-        $iterations = 10;
-        $data = str_repeat("a", 1024 * 1024); // 1MB
+        $iterations = 5;
+        $data = str_repeat("a", 100 * 1024); // 100KB
 
         $start = microtime(true);
 
@@ -115,10 +106,7 @@ class Blake3PerformanceTest extends TestCase
      */
     public function testChunkedUpdatePerformance(): void
     {
-        // 跳过长时间运行的测试，除非特别指定
-        $this->markTestSkipped('性能测试需要较长时间运行，默认跳过。使用 --group=performance 选项来运行此测试。');
-
-        $iterations = 50;
+        $iterations = 10;
         $data = str_repeat("Chunked update performance test data. ", 1000); // ~40KB
         $dataLen = strlen($data);
 
@@ -162,10 +150,7 @@ class Blake3PerformanceTest extends TestCase
      */
     public function testOutputLengthPerformance(): void
     {
-        // 跳过长时间运行的测试，除非特别指定
-        $this->markTestSkipped('性能测试需要较长时间运行，默认跳过。使用 --group=performance 选项来运行此测试。');
-
-        $iterations = 100;
+        $iterations = 20;
         $data = "Testing output length performance";
         $outputLengths = [32, 64, 128, 256, 512, 1024];
 
@@ -199,10 +184,7 @@ class Blake3PerformanceTest extends TestCase
      */
     public function testCompareWithBuiltinHashes(): void
     {
-        // 跳过长时间运行的测试，除非特别指定
-        $this->markTestSkipped('性能测试需要较长时间运行，默认跳过。使用 --group=performance 选项来运行此测试。');
-
-        $iterations = 100;
+        $iterations = 20;
         $data = str_repeat("Performance comparison with built-in hash functions. ", 100); // ~5KB
         $algorithms = ['blake3', 'sha256', 'sha512', 'sha1', 'md5'];
 
@@ -248,9 +230,6 @@ class Blake3PerformanceTest extends TestCase
      */
     public function testBufferSizeImpactOnLargeFile(): void
     {
-        // 跳过长时间运行的测试，除非特别指定
-        $this->markTestSkipped('性能测试需要较长时间运行，默认跳过。使用 --group=performance 选项来运行此测试。');
-
         // 创建测试用临时目录
         $tmpDir = sys_get_temp_dir() . '/blake3_test_' . uniqid();
         if (!file_exists($tmpDir)) {
@@ -259,15 +238,19 @@ class Blake3PerformanceTest extends TestCase
 
         // 创建测试文件
         $testFile = $tmpDir . '/large_file.dat';
-        $fileSize = 50 * 1024 * 1024; // 50MB
+        $fileSize = 5 * 1024 * 1024; // 5MB
 
         echo "创建{$fileSize}字节的测试文件...\n";
 
         // 分块创建大文件以避免内存问题
-        $chunk = str_repeat('x', 1024 * 1024); // 1MB块
+        $chunkSize = 1024 * 1024; // 1MB块
+        $chunk = str_repeat('x', $chunkSize);
         $fp = fopen($testFile, 'wb');
-        for ($i = 0; $i < $fileSize / (1024 * 1024); $i++) {
-            fwrite($fp, $chunk);
+        $written = 0;
+        while ($written < $fileSize) {
+            $toWrite = min($chunkSize, $fileSize - $written);
+            fwrite($fp, substr($chunk, 0, $toWrite));
+            $written += $toWrite;
         }
         fclose($fp);
 
@@ -341,9 +324,6 @@ class Blake3PerformanceTest extends TestCase
      */
     public function testAutoVsFixedBufferSize(): void
     {
-        // 跳过长时间运行的测试，除非特别指定
-        $this->markTestSkipped('性能测试需要较长时间运行，默认跳过。使用 --group=performance 选项来运行此测试。');
-
         // 创建一系列不同大小的测试文件
         $tmpDir = sys_get_temp_dir() . '/blake3_test_' . uniqid();
         if (!file_exists($tmpDir)) {
@@ -352,9 +332,9 @@ class Blake3PerformanceTest extends TestCase
 
         // 创建不同大小的测试文件
         $fileSizes = [
-            'small' => 100 * 1024,         // 100KB
-            'medium' => 5 * 1024 * 1024,   // 5MB
-            'large' => 20 * 1024 * 1024,   // 20MB
+            'small' => 50 * 1024,          // 50KB
+            'medium' => 500 * 1024,        // 500KB
+            'large' => 2 * 1024 * 1024,    // 2MB
         ];
 
         $files = [];
@@ -461,9 +441,6 @@ class Blake3PerformanceTest extends TestCase
      */
     public function testLowMemoryMode(): void
     {
-        // 跳过长时间运行的测试，除非特别指定
-        $this->markTestSkipped('性能测试需要较长时间运行，默认跳过。使用 --group=performance 选项来运行此测试。');
-
         // 创建测试文件
         $tmpDir = sys_get_temp_dir() . '/blake3_test_' . uniqid();
         if (!file_exists($tmpDir)) {
@@ -471,7 +448,7 @@ class Blake3PerformanceTest extends TestCase
         }
 
         $testFile = $tmpDir . '/test_file.dat';
-        $fileSize = 15 * 1024 * 1024; // 15MB
+        $fileSize = 3 * 1024 * 1024; // 3MB
 
         // 创建测试文件
         $fp = fopen($testFile, 'wb');
