@@ -27,6 +27,8 @@ class HashBenchmark
 {
     /**
      * 测试的数据大小（字节）
+     * 
+     * @var array<int>
      */
     private array $dataSizes = [
         4,
@@ -43,11 +45,15 @@ class HashBenchmark
 
     /**
      * 测试的哈希算法
+     * 
+     * @var array<string, callable(string): string>
      */
     private array $algorithms = [];
 
     /**
      * 结果存储
+     * 
+     * @var array<string, array<string, mixed>>
      */
     private array $results = [];
 
@@ -94,10 +100,10 @@ class HashBenchmark
      * 运行单个哈希算法测试
      *
      * @param string $algoName 算法名称
-     * @param callable $algoFunc 算法函数
+     * @param callable(string): string $algoFunc 算法函数
      * @param string $data 测试数据
      * @param int $dataSize 数据大小
-     * @return array 测试结果
+     * @return array<string, mixed> 测试结果
      */
     private function runTest(string $algoName, callable $algoFunc, string $data, int $dataSize): array
     {
@@ -147,7 +153,7 @@ class HashBenchmark
 
             foreach ($this->algorithms as $name => $func) {
                 echo "测试 $name 算法，数据大小 $size 字节...\n";
-                $result = $this->runTest($name, $func, $data, $size);
+                $result = $this->runTest((string) $name, $func, $data, (int) $size);
                 $this->results[] = $result;
             }
 
@@ -169,14 +175,14 @@ class HashBenchmark
             foreach ($this->algorithms as $name => $func) {
                 $result = $this->findResult($name, $size);
 
-                if ($result) {
+                if ($result !== null) {
                     printf("| %-10s | %-10d | %-15.4f | %-15.4f | %-15.4f | %-15.4f |\n",
-                        $result['algorithm'],
-                        $result['data_size'],
-                        $result['min_time'],
-                        $result['max_time'],
-                        $result['avg_time'],
-                        $result['stable_avg_time']);
+                        (string) $result['algorithm'],
+                        (int) $result['data_size'],
+                        (float) $result['min_time'],
+                        (float) $result['max_time'],
+                        (float) $result['avg_time'],
+                        (float) $result['stable_avg_time']);
                 }
             }
             echo str_repeat('-', 110) . "\n";
@@ -188,7 +194,7 @@ class HashBenchmark
      *
      * @param string $algorithm 算法名称
      * @param int $size 数据大小
-     * @return array|null 找到的结果或null
+     * @return array<string, mixed>|null 找到的结果或null
      */
     private function findResult(string $algorithm, int $size): ?array
     {
@@ -216,14 +222,14 @@ class HashBenchmark
             foreach ($this->algorithms as $name => $func) {
                 $result = $this->findResult($name, $size);
 
-                if ($result) {
+                if ($result !== null) {
                     $markdown .= sprintf("| %s | %d | %.4f | %.4f | %.4f | %.4f |\n",
-                        $result['algorithm'],
-                        $result['data_size'],
-                        $result['min_time'],
-                        $result['max_time'],
-                        $result['avg_time'],
-                        $result['stable_avg_time']);
+                        (string) $result['algorithm'],
+                        (int) $result['data_size'],
+                        (float) $result['min_time'],
+                        (float) $result['max_time'],
+                        (float) $result['avg_time'],
+                        (float) $result['stable_avg_time']);
                 }
             }
         }
