@@ -27,7 +27,7 @@ class HashBenchmark
 {
     /**
      * 测试的数据大小（字节）
-     * 
+     *
      * @var array<int>
      */
     private array $dataSizes = [
@@ -45,14 +45,14 @@ class HashBenchmark
 
     /**
      * 测试的哈希算法
-     * 
+     *
      * @var array<string, callable(string): string>
      */
     private array $algorithms = [];
 
     /**
      * 结果存储
-     * 
+     *
      * @var array<string, array<string, mixed>>
      */
     private array $results = [];
