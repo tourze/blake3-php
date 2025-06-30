@@ -3,6 +3,8 @@
 namespace Tourze\Blake3\Output;
 
 use Tourze\Blake3\Constants\Blake3Constants;
+use Tourze\Blake3\Exception\Blake3InvalidArgumentException;
+use Tourze\Blake3\Exception\Blake3RuntimeException;
 use Tourze\Blake3\Util\Blake3Util;
 
 /**
@@ -108,7 +110,7 @@ class Blake3Output
     public function writeToStream($stream, int $length = 32): int
     {
         if (!is_resource($stream)) {
-            throw new \InvalidArgumentException("参数必须是有效的流资源");
+            throw new Blake3InvalidArgumentException("参数必须是有效的流资源");
         }
 
         if ($length <= 0) {
@@ -169,7 +171,7 @@ class Blake3Output
     {
         $stream = @fopen($filePath, 'wb');
         if ($stream === false) {
-            throw new \RuntimeException("无法打开文件: " . $filePath);
+            throw new Blake3RuntimeException("无法打开文件: " . $filePath);
         }
 
         try {

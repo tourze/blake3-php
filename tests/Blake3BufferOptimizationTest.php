@@ -127,7 +127,8 @@ class Blake3BufferOptimizationTest extends TestCase
             $results[$name] = [
                 'time' => $endTime - $startTime,
                 'memory' => $endMemory - $startMemory,
-                'buffer_size' => $size === null ? 'auto' : $size
+                'buffer_size' => $size === null ? 'auto' : $size,
+                'hash' => $hash
             ];
         }
 
@@ -153,8 +154,8 @@ class Blake3BufferOptimizationTest extends TestCase
         $firstHash = null;
         foreach ($results as $result) {
             if ($firstHash === null) {
-                $firstHash = $result['hash'] ?? '';
-            } else if (isset($result['hash'])) {
+                $firstHash = $result['hash'];
+            } else {
                 $this->assertEquals($firstHash, $result['hash'], "不同缓冲区大小应产生相同的哈希值");
             }
         }

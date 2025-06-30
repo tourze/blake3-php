@@ -4,6 +4,8 @@ namespace Tourze\Blake3;
 
 use Tourze\Blake3\ChunkState\Blake3ChunkState;
 use Tourze\Blake3\Constants\Blake3Constants;
+use Tourze\Blake3\Exception\Blake3InvalidArgumentException;
+use Tourze\Blake3\Exception\Blake3RuntimeException;
 use Tourze\Blake3\Output\Blake3Output;
 use Tourze\Blake3\Util\Blake3Util;
 use Tourze\Blake3\Util\BufferSizeManager;
@@ -47,7 +49,7 @@ class Blake3
     public static function newKeyedInstance(string $key): self
     {
         if (strlen($key) !== 32) {
-            throw new \InvalidArgumentException("Key must be 32 bytes");
+            throw new Blake3InvalidArgumentException("Key must be 32 bytes");
         }
 
         $key_words = Blake3Util::words_from_little_endian_bytes($key);
@@ -131,7 +133,7 @@ class Blake3
     public function updateStream($stream, ?int $bufferSize = null, ?int $fileSize = null): self
     {
         if (!is_resource($stream)) {
-            throw new \InvalidArgumentException("参数必须是有效的流资源");
+            throw new Blake3InvalidArgumentException("参数必须是有效的流资源");
         }
 
         // 获取当前流的位置，之后再恢复
@@ -211,7 +213,7 @@ class Blake3
     {
         // 检查文件是否存在
         if (!file_exists($filePath)) {
-            throw new \RuntimeException("文件不存在: " . $filePath);
+            throw new Blake3RuntimeException("文件不存在: " . $filePath);
         }
 
         // 获取文件大小，用于优化缓冲区大小
@@ -227,7 +229,7 @@ class Blake3
 
         $stream = @fopen($filePath, 'rb');
         if ($stream === false) {
-            throw new \RuntimeException("无法打开文件: " . $filePath);
+            throw new Blake3RuntimeException("无法打开文件: " . $filePath);
         }
 
         try {

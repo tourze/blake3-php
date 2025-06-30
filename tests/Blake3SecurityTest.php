@@ -4,6 +4,7 @@ namespace Tourze\Blake3\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Tourze\Blake3\Blake3;
+use Tourze\Blake3\Exception\Blake3InvalidArgumentException;
 
 /**
  * Blake3算法的安全特性测试类
@@ -39,7 +40,7 @@ class Blake3SecurityTest extends TestCase
         for ($i = 0; $i < strlen($hash1); $i++) {
             $xor = ord($hash1[$i]) ^ ord($hash2[$i]);
             for ($j = 0; $j < 8; $j++) {
-                if (($xor >> $j) & 1) {
+                if ((($xor >> $j) & 1) === 1) {
                     $hammingDistance++;
                 }
             }
@@ -213,7 +214,7 @@ class Blake3SecurityTest extends TestCase
     private static function calculateHammingDistance(string $str1, string $str2): int
     {
         if (strlen($str1) !== strlen($str2)) {
-            throw new \InvalidArgumentException("字符串长度不一致");
+            throw new Blake3InvalidArgumentException("字符串长度不一致");
         }
 
         $distance = 0;

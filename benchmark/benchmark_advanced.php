@@ -134,8 +134,9 @@ class AdvancedHashBenchmark
     private function runTest(string $algoName, callable $algoFunc, string $data, int $dataSize): array
     {
         // 预热
+        $hash = '';
         for ($i = 0; $i < 5; $i++) {
-            $algoFunc($data);
+            $hash = $algoFunc($data);
         }
 
         $allTimes = [];
@@ -175,7 +176,7 @@ class AdvancedHashBenchmark
         $throughput = ($dataSize / 1024 / 1024) / ($stableAvg / 1000);
 
         // 计算中位数和标准差
-        $median = $allTimes[floor(count($allTimes) / 2)];
+        $median = $allTimes[(int)floor(count($allTimes) / 2)];
         $variance = 0;
         foreach ($allTimes as $time) {
             $variance += pow($time - $avg, 2);
@@ -237,7 +238,7 @@ class AdvancedHashBenchmark
             $sizeResults = [];
             foreach ($this->algorithms as $name => $func) {
                 $result = $this->findResult($name, $size);
-                if ($result) {
+                if ($result !== null) {
                     $sizeResults[] = $result;
                 }
             }
@@ -268,7 +269,7 @@ class AdvancedHashBenchmark
             echo str_repeat('-', 80) . "\n";
 
             $baselineResult = $this->findResult($this->baselineAlgorithm, $size);
-            if ($baselineResult) {
+            if ($baselineResult !== null) {
                 $baselineTime = $baselineResult['stable_avg_time'];
 
                 foreach ($sizeResults as $result) {
@@ -304,6 +305,7 @@ class AdvancedHashBenchmark
                 'large_ratio' => 0,
                 'rank_sum' => 0,
                 'count' => 0,
+                'avg_rank' => 0,
             ];
         }
 
@@ -312,7 +314,7 @@ class AdvancedHashBenchmark
             $sizeResults = [];
             foreach ($this->algorithms as $name => $func) {
                 $result = $this->findResult($name, $size);
-                if ($result) {
+                if ($result !== null) {
                     $sizeResults[] = $result;
                 }
             }
@@ -324,7 +326,7 @@ class AdvancedHashBenchmark
 
             // 更新排名和性能比
             $baselineResult = $this->findResult($this->baselineAlgorithm, $size);
-            if ($baselineResult) {
+            if ($baselineResult !== null) {
                 $baselineTime = $baselineResult['stable_avg_time'];
 
                 foreach ($sizeResults as $rank => $result) {
@@ -422,13 +424,13 @@ class AdvancedHashBenchmark
         $maxRatio = 1.0;
         foreach ($this->dataSizes as $size) {
             $baselineResult = $this->findResult($this->baselineAlgorithm, $size);
-            if ($baselineResult) {
+            if ($baselineResult !== null) {
                 $baselineTime = $baselineResult['stable_avg_time'];
 
                 foreach ($this->algorithms as $name => $func) {
                     if ($name != $this->baselineAlgorithm) {
                         $result = $this->findResult($name, $size);
-                        if ($result) {
+                        if ($result !== null) {
                             $speedRatio = $baselineTime / $result['stable_avg_time'];
                             $maxRatio = max($maxRatio, $speedRatio);
                         }
@@ -484,13 +486,13 @@ class AdvancedHashBenchmark
             $xPos = $sizePositions[$size];
             $baselineResult = $this->findResult($this->baselineAlgorithm, $size);
 
-            if ($baselineResult) {
+            if ($baselineResult !== null) {
                 $baselineTime = $baselineResult['stable_avg_time'];
 
                 foreach ($this->algorithms as $name => $func) {
                     if ($name != $this->baselineAlgorithm) {
                         $result = $this->findResult($name, $size);
-                        if ($result) {
+                        if ($result !== null) {
                             $speedRatio = $baselineTime / $result['stable_avg_time'];
                             $yPos = $chartHeight - 2 - (int)($speedRatio / $yStep);
 
@@ -575,7 +577,7 @@ class AdvancedHashBenchmark
             $sizeResults = [];
             foreach ($this->algorithms as $name => $func) {
                 $result = $this->findResult($name, $size);
-                if ($result) {
+                if ($result !== null) {
                     $sizeResults[] = $result;
                 }
             }
@@ -604,7 +606,7 @@ class AdvancedHashBenchmark
             $markdown .= "| --- | --- | --- | --- |\n";
 
             $baselineResult = $this->findResult($this->baselineAlgorithm, $size);
-            if ($baselineResult) {
+            if ($baselineResult !== null) {
                 $baselineTime = $baselineResult['stable_avg_time'];
 
                 foreach ($sizeResults as $result) {
@@ -639,6 +641,7 @@ class AdvancedHashBenchmark
                 'large_ratio' => 0,
                 'rank_sum' => 0,
                 'count' => 0,
+                'avg_rank' => 0,
             ];
         }
 
@@ -647,7 +650,7 @@ class AdvancedHashBenchmark
             $sizeResults = [];
             foreach ($this->algorithms as $name => $func) {
                 $result = $this->findResult($name, $size);
-                if ($result) {
+                if ($result !== null) {
                     $sizeResults[] = $result;
                 }
             }
@@ -659,7 +662,7 @@ class AdvancedHashBenchmark
 
             // 更新排名和性能比
             $baselineResult = $this->findResult($this->baselineAlgorithm, $size);
-            if ($baselineResult) {
+            if ($baselineResult !== null) {
                 $baselineTime = $baselineResult['stable_avg_time'];
 
                 foreach ($sizeResults as $rank => $result) {
